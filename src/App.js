@@ -13,7 +13,8 @@ class App extends Component {
     super(props);
     this.state = {
       photo: '',
-      showAllNearbyPlaces: false
+      showAllNearbyPlaces: false,
+      error: null
     }
 
     this.callback = this.callback.bind(this)
@@ -22,10 +23,11 @@ class App extends Component {
   map = ''
 
   componentDidMount() {
-    const googlePlaceAPILoad = setInterval(() => {
+    this.googlePlaceAPILoad = setInterval(() => {
       if (window.google) {
         this.google = window.google;
-        clearInterval(googlePlaceAPILoad);
+        clearInterval(this.googlePlaceAPILoad);
+        this.googlePlaceAPILoad = null;
         console.log('Load Place API');
         this.directionsService = new this.google.maps.DirectionsService();
         this.directionsRenderer = new this.google.maps.DirectionsRenderer();
@@ -48,8 +50,14 @@ class App extends Component {
     }, 100);
   }
 
+  componentWillUnmount() {
+    if (this.googlePlaceAPILoad) {
+      clearInterval(this.googlePlaceAPILoad);
+    }
+  }
+
   callback(results, status) {
-    if (status == this.google.maps.places.PlacesServiceStatus.OK) {
+    if (status === this.google.maps.places.PlacesServiceStatus.OK) {
       var marker = new this.google.maps.Marker({
         map: this.map,
         place: {
@@ -67,6 +75,15 @@ class App extends Component {
     var marker = new window.google.maps.Marker({ position: mapCenter, map: map });
   }
 
+  handleError = (error, userMessage) => {
+    console.error('Error:', error);
+    this.setState({ error: userMessage || 'Ha ocurrido un error. Por favor, intenta nuevamente.' });
+  }
+
+  clearError = () => {
+    this.setState({ error: null });
+  }
+
   changeDestination = (destino) => {
     console.log(destino)
     document.getElementById('destino').value = destino;
@@ -74,28 +91,45 @@ class App extends Component {
   }
 
   manejoOnClick = (e) => {
-    const request = {
-      query: document.getElementById('destino').value,
-      fields: ['photos', 'formatted_address', 'name', 'place_id'],
-    };
-    this.service = new this.google.maps.places.PlacesService(this.map);
-    this.service.findPlaceFromQuery(request, this.findPlaceResult);
+    try {
+      this.clearError();
+      const destino = document.getElementById('destino').value;
+      if (!destino || destino.trim() === '') {
+        this.handleError(null, 'Por favor, ingresa un destino para buscar.');
+        return;
+      }
+      const request = {
+        query: destino,
+        fields: ['photos', 'formatted_address', 'name', 'place_id'],
+      };
+      this.service = new this.google.maps.places.PlacesService(this.map);
+      this.service.findPlaceFromQuery(request, this.findPlaceResult);
+    } catch (error) {
+      this.handleError(error, 'Error al buscar el lugar. Verifica tu conexión e intenta nuevamente.');
+    }
   }
 
   getNearbyPlacesOnClick = (e) => {
-    let request = {
-      location: this.state.placeLocation,
-      radius: '10000',
-    };
-
-    this.service = new this.google.maps.places.PlacesService(this.map);
-    this.service.nearbySearch(request, this.callbackSearchNearby)
+    try {
+      this.clearError();
+      if (!this.state.placeLocation) {
+        this.handleError(null, 'Primero debes buscar un lugar para encontrar lugares cercanos.');
+        return;
+      }
+      let request = {
+        location: this.state.placeLocation,
+        radius: '10000',
+      };
+      this.service = new this.google.maps.places.PlacesService(this.map);
+      this.service.nearbySearch(request, this.callbackSearchNearby);
+    } catch (error) {
+      this.handleError(error, 'Error al buscar lugares cercanos.');
+    }
   }
 
   callbackSearchNearby = (results, status) => {
-    if (status == this.google.maps.places.PlacesServiceStatus.OK) {
+    if (status === this.google.maps.places.PlacesServiceStatus.OK) {
       console.log("callback received " + results.length + " results");
-      window.lugaresCercanos = results
       if (results.length) {
         let nearbyPlaces = results.map((place, index) =>
           <NearbyPlace key={index} placeData={place}
@@ -104,35 +138,50 @@ class App extends Component {
         this.setState({
           nearbyPlaces: nearbyPlaces
         })
+      } else {
+        this.setState({ nearbyPlaces: [] });
       }
-    } else console.log("callback.status=" + status);
+    } else {
+      console.error("Google Places API error (nearbySearch):", status);
+      const errorMessages = {
+        'ZERO_RESULTS': 'No se encontraron lugares cercanos.',
+        'OVER_QUERY_LIMIT': 'Límite de consultas excedido. Intenta más tarde.',
+        'REQUEST_DENIED': 'Acceso denegado a la API de Google Places.',
+        'INVALID_REQUEST': 'Solicitud inválida.',
+        'UNKNOWN_ERROR': 'Error desconocido. Intenta nuevamente.'
+      };
+      this.handleError(null, errorMessages[status] || 'Error al buscar lugares cercanos.');
+    }
   }
 
   findPlaceResult = (results, status) => {
+    if (status !== 'OK') {
+      const errorMessages = {
+        'ZERO_RESULTS': 'No se encontraron resultados para tu búsqueda.',
+        'OVER_QUERY_LIMIT': 'Límite de consultas excedido. Intenta más tarde.',
+        'REQUEST_DENIED': 'Error de acceso a la API de Google Places.',
+        'INVALID_REQUEST': 'Solicitud inválida.',
+        'UNKNOWN_ERROR': 'Error desconocido. Intenta nuevamente.'
+      };
+      this.handleError(null, errorMessages[status] || 'Error al buscar el lugar.');
+      this.setState({ places: [], showAllNearbyPlaces: false });
+      return;
+    }
+    
     var placesTemp = []
     var placeId = ''
-    if (status === 'OK') {
-      results.map((place) => {
-        var placePhotos = ['']
-        const placeTemp = {
-          id: place.place_id, name: place.name,
-          address: place.formatted_address, photos: placePhotos
-        }
-        placeId = place.place_id;
-        placesTemp.push(<Place placeData={placeTemp} />);
-      })
-    }
+    results.map((place) => {
+      var placePhotos = ['']
+      const placeTemp = {
+        id: place.place_id, name: place.name,
+        address: place.formatted_address, photos: placePhotos
+      }
+      placeId = place.place_id;
+      placesTemp.push(<Place placeData={placeTemp} />);
+    })
+    
     if (placesTemp.length > 0)
       this.findPlaceDetail(placeId);
-    else {
-      const placeTemp = {
-        id: 'N/A', name: <div className='mt-5'><strong className='text-center'>
-          No hay resultados</strong></div>,
-        address: '', photos: ['']
-      }
-      placesTemp.push(<Place placeData={placeTemp} />);
-      this.setState({ places: placesTemp, showAllNearbyPlaces: false })
-    }
   }
 
   findPlaceDetail = (placeIdFound) => {
@@ -146,8 +195,13 @@ class App extends Component {
   }
 
   foundPlaceDatail = (place, status) => {
-    if (status === 'OK') {
-      window.lugar = place
+    if (status !== 'OK') {
+      console.error('Google Places API error (getDetails):', status);
+      this.handleError(null, 'Error al obtener detalles del lugar.');
+      return;
+    }
+    
+    try {
       var placePhotos = ['']
       if (place.photos) {
         place.photos.map((placePhoto, index) => {
@@ -179,6 +233,8 @@ class App extends Component {
         placeLocation: place.geometry.location
       })
       this.showMap(place.geometry.location);
+    } catch (error) {
+      this.handleError(error, 'Error al procesar la información del lugar.');
     }
   }
 
@@ -213,6 +269,18 @@ class App extends Component {
               <h2>Te invitamos a buscar el destino de tus próximas vacaciones...</h2>
             </div>
             <div className='container border rounded p-3 mt-4' style={{ width: '50%' }}>
+              {this.state.error && (
+                <div className='row mb-3'>
+                  <div className='col-12'>
+                    <div className="alert alert-danger alert-dismissible fade show" role="alert">
+                      {this.state.error}
+                      <button type="button" className="close" onClick={this.clearError} aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
               <div className='row'>
                 <div className='col-4'></div>
                 <div className='col-4 text-center'>

@@ -7,7 +7,7 @@ export default class Horario extends Component {
   }
 
   manejoOnClick = (e) => {
-    if (e.target.id='horario'){
+    if (e.target.id === 'horario'){
       this.setState((prevState) => {
         return {mostrarHorario:!prevState.mostrarHorario}
       })
