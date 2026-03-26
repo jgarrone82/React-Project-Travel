@@ -1,28 +1,54 @@
-import React, { Component } from 'react'
-import Rating from './Rating'
+import React from 'react';
+import PropTypes from 'prop-types';
+import Rating from './Rating';
 
-export default class NearbyPlace extends Component {
-  render() {
-    let photo = this.props.placeData.photos?.length &&
-    (<img src={this.props.placeData.photos[0].getUrl()} className="card-img-top" alt="..." />)
+const NearbyPlace = ({ placeData, chooseDestination }) => {
+  const photo = placeData.photos?.[0] && (
+    <img 
+      src={placeData.photos[0].getUrl()} 
+      className="card-img-top" 
+      alt={placeData.name} 
+    />
+  );
 
-    let rating = this.props.placeData.rating &&
-      (<Rating placeRating={this.props.placeData.rating}/>)
+  const rating = placeData.rating && (
+    <Rating placeRating={placeData.rating} />
+  );
 
-    return (
-      <div className="col mb-4">
-        <div className="card">
-          {photo}
-          <div className="card-body">
-            <h5 className="card-title">
-              { this.props.placeData.name }
-            </h5>
-            {rating}
-            <a href="#" onClick={(e) => this.props.chooseDestination(this.props.placeData.name)} 
-              className="btn btn-primary">Escoger como destino</a>
-          </div>
+  const handleChooseDestination = (e) => {
+    e.preventDefault();
+    chooseDestination(placeData.name);
+  };
+
+  return (
+    <div className="col mb-4">
+      <div className="card">
+        {photo}
+        <div className="card-body">
+          <h5 className="card-title">
+            {placeData.name}
+          </h5>
+          {rating}
+          <a 
+            href="#destino" 
+            onClick={handleChooseDestination}
+            className="btn btn-primary"
+          >
+            Escoger como destino
+          </a>
         </div>
       </div>
-    )
-  }
-}
+    </div>
+  );
+};
+
+NearbyPlace.propTypes = {
+  placeData: PropTypes.shape({
+    name: PropTypes.string.isRequired,
+    photos: PropTypes.array,
+    rating: PropTypes.number
+  }).isRequired,
+  chooseDestination: PropTypes.func.isRequired
+};
+
+export default NearbyPlace;

@@ -1,21 +1,26 @@
-import React, { Component } from 'react'
-import '../node_modules/font-awesome/css/font-awesome.css'
-import StarRatings from '../node_modules/react-star-ratings'
+import React from 'react';
+import PropTypes from 'prop-types';
+import StarRatings from 'react-star-ratings';
+import 'font-awesome/css/font-awesome.css';
 
-export default class Rating extends Component {
-  constructor(props) {
-    super(props);    
-  }
+const Rating = ({ placeRating }) => (
+  <div className='row mt-2 mb-1'>
+    <div className='col-3'><strong>Rating: </strong></div>
+    <div className='col-2'><strong>{placeRating}</strong></div>
+    <div className='col-6'>
+      <StarRatings 
+        rating={placeRating} 
+        starRatedColor="blue" 
+        starDimension="30px" 
+        numberOfStars={5} 
+        name='rating' 
+      />
+    </div>
+  </div>
+);
 
-  render() {
-    return (      
-      <div className='row mt-2 mb-1' >
-        <div className='col-3'><strong>Rating: </strong></div>
-        <div className='col-2'><strong>{this.props.placeRating}</strong></div>
-        <div className='col-6'>
-          <StarRatings rating={this.props.placeRating} starRatedColor="blue" starDimension="30px" numberOfStars={5} name='rating' />
-        </div>
-      </div>      
-    )
-  }
-}
+Rating.propTypes = {
+  placeRating: PropTypes.number.isRequired
+};
+
+export default Rating;
