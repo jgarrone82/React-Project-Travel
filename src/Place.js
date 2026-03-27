@@ -3,30 +3,32 @@ import PropTypes from 'prop-types';
 
 const Place = ({ placeData }) => {
   const cantPhotos = Math.min(placeData.photos.length, 6) || 3;
-  const colSize = 4;
   
   const htmlPhotos = placeData.photos.slice(0, cantPhotos).map((photo, index) => (
-    <div key={index} className={`col-${colSize} text-center`}>
-      <img src={photo} alt={placeData.name} />
+    <div key={index}>
+      <img 
+        src={photo} 
+        alt={`${placeData.name} - Foto ${index + 1}`}
+        loading="lazy"
+      />
     </div>
   ));
 
   return (
-    <div>
-      <div className='row py-2'>
-        <div className='col-12 text-center'>{placeData.name}</div>
+    <div className="place-info-card">
+      <div className="place-name">{placeData.name}</div>
+      <div className="place-address">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: '8px', verticalAlign: 'middle' }}>
+          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+          <circle cx="12" cy="10" r="3"></circle>
+        </svg>
+        {placeData.address}
       </div>
-      <div className='row py-2'>
-        {htmlPhotos.slice(0, 3)}
-      </div>
-      <div className='row py-2'>
-        {htmlPhotos.slice(3, 6)}
-      </div>
-      <div className='row'>
-        <div className='col-2'></div>
-        <div className='col-8'>{placeData.address}</div>
-        <div className='col-2'></div>
-      </div>
+      {htmlPhotos.length > 0 && (
+        <div className="photo-grid">
+          {htmlPhotos}
+        </div>
+      )}
     </div>
   );
 };

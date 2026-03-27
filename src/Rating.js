@@ -1,20 +1,25 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import StarRatings from 'react-star-ratings';
-import 'font-awesome/css/font-awesome.css';
 
 const Rating = ({ placeRating }) => (
-  <div className='row mt-2 mb-1'>
-    <div className='col-3'><strong>Rating: </strong></div>
-    <div className='col-2'><strong>{placeRating}</strong></div>
-    <div className='col-6'>
+  <div className="rating-container">
+    <div style={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--primary-color)' }}>
+      {placeRating}
+    </div>
+    <div>
       <StarRatings 
         rating={placeRating} 
-        starRatedColor="blue" 
-        starDimension="30px" 
+        starRatedColor="#F59E0B" 
+        starEmptyColor="#e2e8f0"
+        starDimension="28px" 
+        starSpacing="2px"
         numberOfStars={5} 
         name='rating' 
       />
+    </div>
+    <div style={{ fontSize: '0.875rem', color: 'var(--text-light)' }}>
+      {placeRating >= 4.5 ? 'Excelente' : placeRating >= 4 ? 'Muy bueno' : placeRating >= 3 ? 'Bueno' : 'Regular'}
     </div>
   </div>
 );
