@@ -7,6 +7,7 @@ import Rating from './Rating';
 import Horario from './Horario';
 import NearbyPlace from './NearbyPlace';
 import Reviews from './Reviews';
+import { loadGoogleMapsApi } from './utils/loadGoogleMapsApi';
 
 const App = () => {
   // State
@@ -24,7 +25,6 @@ const App = () => {
   const googleRef = useRef(null);
   const directionsServiceRef = useRef(null);
   const directionsRendererRef = useRef(null);
-  const intervalRef = useRef(null);
 
   // Error handling
   const handleError = useCallback((err, userMessage) => {
@@ -38,16 +38,18 @@ const App = () => {
 
   // Initialize Google Maps
   useEffect(() => {
-    intervalRef.current = setInterval(() => {
-      if (window.google) {
+    let cancelled = false;
+
+    loadGoogleMapsApi()
+      .then((maps) => {
+        if (cancelled) return;
+
         googleRef.current = window.google;
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-        console.log('Load Place API');
-        
+        console.log('Google Maps API loaded');
+
         directionsServiceRef.current = new googleRef.current.maps.DirectionsService();
         directionsRendererRef.current = new googleRef.current.maps.DirectionsRenderer();
-        
+
         const mapCenter = new googleRef.current.maps.LatLng(4.624335, -74.064644);
         mapRef.current = new googleRef.current.maps.Map(
           document.getElementById('gmapContainer'),
@@ -59,31 +61,32 @@ const App = () => {
           textQuery: 'Google Sydney',
           fields: ['id', 'location']
         };
-        
+
         googleRef.current.maps.places.Place.searchByText(initialRequest)
           .then(({ places }) => {
-            if (places.length > 0) {
-              new googleRef.current.maps.Marker({
-                map: mapRef.current,
-                place: {
-                  placeId: places[0].id,
-                  location: places[0].location
-                }
-              });
-            }
+            if (cancelled || !places || places.length === 0) return;
+            new googleRef.current.maps.Marker({
+              map: mapRef.current,
+              place: {
+                placeId: places[0].id,
+                location: places[0].location
+              }
+            });
           })
           .catch((err) => {
             console.error('Initial search error:', err);
           });
-      }
-    }, 100);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        console.error('Failed to load Google Maps API:', err);
+        handleError(err, err.message);
+      });
 
     return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
+      cancelled = true;
     };
-  }, []);
+  }, [handleError]);
 
   // Show map helper
   const showMap = useCallback((mapCenter) => {
