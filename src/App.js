@@ -23,8 +23,8 @@ const App = () => {
   // Refs for Google Maps
   const mapRef = useRef(null);
   const googleRef = useRef(null);
-  const directionsServiceRef = useRef(null);
-  const directionsRendererRef = useRef(null);
+  const routeMapRef = useRef(null);
+  const routePolylinesRef = useRef([]);
 
   // Error handling
   const handleError = useCallback((err, userMessage) => {
@@ -47,13 +47,13 @@ const App = () => {
         googleRef.current = window.google;
         console.log('Google Maps API loaded');
 
-        directionsServiceRef.current = new googleRef.current.maps.DirectionsService();
-        directionsRendererRef.current = new googleRef.current.maps.DirectionsRenderer();
+        // Load Routes library
+        googleRef.current.maps.importLibrary('routes');
 
         const mapCenter = new googleRef.current.maps.LatLng(4.624335, -74.064644);
         mapRef.current = new googleRef.current.maps.Map(
           document.getElementById('gmapContainer'),
-          { center: mapCenter, zoom: 15 }
+          { center: mapCenter, zoom: 15, mapId: 'DEMO_MAP_ID' }
         );
 
         // Initial search using new Place API (searchByText)
@@ -65,12 +65,10 @@ const App = () => {
         googleRef.current.maps.places.Place.searchByText(initialRequest)
           .then(({ places }) => {
             if (cancelled || !places || places.length === 0) return;
-            new googleRef.current.maps.Marker({
+            new googleRef.current.maps.marker.AdvancedMarkerElement({
               map: mapRef.current,
-              place: {
-                placeId: places[0].id,
-                location: places[0].location
-              }
+              position: places[0].location,
+              title: places[0].displayName || 'Google Sydney'
             });
           })
           .catch((err) => {
@@ -92,10 +90,13 @@ const App = () => {
   const showMap = useCallback((mapCenter) => {
     const map = new window.google.maps.Map(
       document.getElementById('map'),
-      { zoom: 15, center: mapCenter }
+      { zoom: 15, center: mapCenter, mapId: 'DEMO_MAP_ID' }
     );
-    directionsRendererRef.current.setMap(map);
-    new window.google.maps.Marker({ position: mapCenter, map });
+    routeMapRef.current = map;
+    // Clean up previous route polylines
+    routePolylinesRef.current.forEach(p => p.setMap(null));
+    routePolylinesRef.current = [];
+    new window.google.maps.marker.AdvancedMarkerElement({ position: mapCenter, map });
   }, []);
 
   // Change destination handler
@@ -248,23 +249,58 @@ const App = () => {
     }
   }, [clearError, handleError, placeLocation, changeDestination]);
 
-  const calcRoute = useCallback(() => {
-    const start = document.getElementById('origen').value;
-    const end = document.getElementById('destino').value;
-    const travelMode = document.getElementById('mode').value;
+  const calcRoute = useCallback(async () => {
+    try {
+      const start = document.getElementById('origen').value;
+      const end = document.getElementById('destino').value;
+      const travelMode = document.getElementById('mode').value;
 
-    const request = {
-      origin: start,
-      destination: end,
-      travelMode: travelMode
-    };
-
-    directionsServiceRef.current.route(request, (result, status) => {
-      if (status === 'OK') {
-        directionsRendererRef.current.setDirections(result);
+      if (!start || !end) {
+        handleError(null, 'Por favor, ingresa origen y destino.');
+        return;
       }
-    });
-  }, []);
+
+      // Clean up previous polylines
+      routePolylinesRef.current.forEach(p => p.setMap(null));
+      routePolylinesRef.current = [];
+
+      // Load Routes library and compute route
+      const { Route } = await window.google.maps.importLibrary('routes');
+
+      const request = {
+        origin: start,
+        destination: end,
+        travelMode: travelMode,
+        fields: ['path']
+      };
+
+      const { routes } = await Route.computeRoutes(request);
+
+      if (!routes || routes.length === 0) {
+        handleError(null, 'No se encontró una ruta disponible.');
+        return;
+      }
+
+      // Create polylines and add to map
+      const polylines = routes[0].createPolylines();
+      polylines.forEach(polyline => polyline.setMap(routeMapRef.current));
+      routePolylinesRef.current = polylines;
+
+      // Create start/end markers
+      const markers = await routes[0].createWaypointAdvancedMarkers();
+      markers.forEach(marker => marker.setMap(routeMapRef.current));
+
+      // Fit map to route path
+      if (routes[0].path) {
+        const bounds = new window.google.maps.LatLngBounds();
+        routes[0].path.forEach(point => bounds.extend(point));
+        routeMapRef.current.fitBounds(bounds);
+      }
+    } catch (err) {
+      console.error('Routes API error:', err);
+      handleError(err, 'Error al calcular la ruta.');
+    }
+  }, [handleError]);
 
   return (
     <div className="App">
