@@ -38,6 +38,8 @@
   },
   "devDependencies": {},
   "overrides": {
-    "lodash": "4.18.1"
+    "lodash": "4.18.1",
+    "underscore": "1.13.8",
+    "@tootallnate/once": "3.0.1"
   }
 }
