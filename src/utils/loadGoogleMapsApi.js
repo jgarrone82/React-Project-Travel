@@ -1,6 +1,6 @@
 /**
  * Loads the Google Maps JavaScript API dynamically.
- * The API key is read from REACT_APP_GOOGLE_API_KEY environment variable.
+ * The API key is read from VITE_GOOGLE_API_KEY environment variable.
  *
  * Usage:
  *   import { loadGoogleMapsApi } from './utils/loadGoogleMapsApi';
@@ -21,13 +21,13 @@ export function loadGoogleMapsApi() {
     return loadPromise;
   }
 
-  const apiKey = process.env.REACT_APP_GOOGLE_API_KEY;
+  const apiKey = import.meta.env.VITE_GOOGLE_API_KEY;
 
   if (!apiKey || apiKey === 'YOUR_API_KEY_HERE') {
     return Promise.reject(
       new Error(
         'Google Maps API key not configured. ' +
-        'Create a .env file with REACT_APP_GOOGLE_API_KEY=your_key_here'
+        'Create a .env file with VITE_GOOGLE_API_KEY=your_key_here'
       )
     );
   }
